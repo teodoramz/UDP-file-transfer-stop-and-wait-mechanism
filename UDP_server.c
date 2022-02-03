@@ -14,20 +14,13 @@
 typedef struct UDP_Packet {
   char msg[BUFFSIZE];
   int flag;
-  int packetNr;
-
 }UDP_Packet;
 
-void Eroare(char *e) { perror(e); exit(1); }
+
 
 int main(int argc, char** argv)
 {
-  if(argc!=2)
-  {
-    printf("Please give an output file!");
-    exit(0);
-  }
-
+  
 int socketFd;
 UDP_Packet recvPacket, sendPacket;
 int rc, adrlen, lastPacketNr;
@@ -36,61 +29,77 @@ struct sockaddr_in serverToClient;
 struct sockaddr_in clientToSv;
 
 adrlen = sizeof(clientToSv);
-lastPacketNr=0;
+
 bzero(&serverToClient,sizeof(serverToClient));
 
 socketFd = socket(AF_INET,SOCK_DGRAM, 0); //0 sau IPPROTO_UDP la fel
+
 if(socketFd == -1)
 {
-  Eroare("Socket fd");
+  printf("Socket %d\n", __LINE__);
+  exit(1);
 }
 
 serverToClient.sin_family = AF_INET;
 serverToClient.sin_port = htons(PORT);
 serverToClient.sin_addr.s_addr =  htonl(INADDR_ANY);
 
-rc = bind(socketFd,
-   (struct sockaddr*)&serverToClient,
-    sizeof(serverToClient));
+rc = bind(socketFd, (struct sockaddr*)&serverToClient, sizeof(serverToClient));
 
 if(rc == -1)
 {
-  Eroare(" binding");
+  printf("Bind %d\n", __LINE__);
+  exit(1);
 }
 
-FILE* f = fopen(argv[1], "w");
 
-while(1)
-{
-  rc = recvfrom(socketFd, &recvPacket, sizeof(recvPacket), 0,
+rc = recvfrom(socketFd, &recvPacket, sizeof(recvPacket), 0,
   (struct sockaddr *)&clientToSv, &adrlen);
   if(rc == -1)
   {
-    Eroare("receive");
+    printf("Recvfrom %d\n", __LINE__);
+    exit(1);
   }
+  printf("%s", recvPacket.msg);
 
-  if(recvPacket.flag == 2)
-  {
+FILE* f = fopen(recvPacket.msg , "w");
+
+while(1)
+{
+  sendPacket.flag = 1;
+  
+  rc = recvfrom(socketFd, &recvPacket, sizeof(recvPacket), 0,
+  		(struct sockaddr *)&clientToSv, &adrlen);
+if(rc == -1)
+{
+    printf("Recvfrom %d\n", __LINE__);
+    sendPacket.flag = 3;
+    
+}
+
+if(recvPacket.flag == 2)
+{
     break;
-  }
+}
 
-  sendPacket.packetNr = lastPacketNr;
 
-  if(lastPacketNr == recvPacket.packetNr)
-  {
-    fputs(recvPacket.msg, f);
-    memset(&(recvPacket.msg[0]),0, sizeof(recvPacket.msg));
-    lastPacketNr++;
+if(sendPacket.flag == 1){
+   fputs(recvPacket.msg, f);
 
-    sendPacket.flag = 1;
-  }
+   memset(&(recvPacket.msg[0]),0, sizeof(recvPacket.msg));
+}
+
+
+
 
   rc = sendto(socketFd, &sendPacket, sizeof(sendPacket),
-  0,(struct sockaddr*)&clientToSv, adrlen);
+  	0,(struct sockaddr*)&clientToSv, adrlen);
   if(rc == -1)
   {
-    Eroare("send to");
+    printf("SendTo %d\n", __LINE__);
+    exit(1);
   }
+  
 }
 
 printf("Done!\n");

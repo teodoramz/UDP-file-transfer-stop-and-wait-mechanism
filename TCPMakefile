@@ -1,0 +1,13 @@
+CC=gcc
+CFLAGS=-Wall -g -o
+
+all: TCP_client TCP_server
+
+TCP_client: TCP_client.c
+	$(CC) -Wall $^ -o $@
+
+TCP_server: TCP_server.c
+	$(CC) -Wall $^ -o $@
+
+clean:
+	rm *.o TCP_client TCP_server

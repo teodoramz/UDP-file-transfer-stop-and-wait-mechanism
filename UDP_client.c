@@ -15,89 +15,92 @@
 typedef struct UDP_Packet {
   char msg[BUFFSIZE];
   int flag;
-  int packetNr;
-
 }UDP_Packet;
 
-void Eroare(char *e) { perror(e); exit(1); }
 
 int main(int argc, char** argv)
 {
-  if(argc!=2)
-  {
-    printf("Please give an input file!");
-    exit(0);
-  }
-
 
 int socketFd;
-  UDP_Packet recvPacket, sendPacket;
-  int rc, adrlen, lastPacketNr;
+UDP_Packet recvPacket, sendPacket;
+int rc, adrlen, lastPacketNr;
 
 struct sockaddr_in clientToSv;
 
-  adrlen = sizeof(clientToSv);
-  lastPacketNr=0;
-  bzero(&clientToSv,adrlen);
+adrlen = sizeof(clientToSv);
 
-  socketFd = socket(AF_INET,SOCK_DGRAM, 0); //0 sau IPPROTO_UDP la fel
-  if(socketFd == -1)
-  {
-    Eroare("Socket fd");
-  }
+bzero(&clientToSv,adrlen);
 
-  clientToSv.sin_family = AF_INET;
-  clientToSv.sin_port = htons(PORT);
-  clientToSv.sin_addr.s_addr = inet_addr(IP_ADDRESS);
+socketFd = socket(AF_INET,SOCK_DGRAM, 0); //0 sau IPPROTO_UDP la fel
+if(socketFd == -1)
+{
+    printf("Socket %d\n", __LINE__);
+    exit(1);
+}
+
+clientToSv.sin_family = AF_INET;
+clientToSv.sin_port = htons(PORT);
+clientToSv.sin_addr.s_addr = inet_addr(IP_ADDRESS);
 
 
-  FILE* f = fopen(argv[1], "r");
-  char buffer[BUFFSIZE];
+FILE* f = fopen(argv[1], "r");
+char buffer[BUFFSIZE];
+  
+strcpy(sendPacket.msg, argv[1]);
+  
+rc = sendto(socketFd, &sendPacket, sizeof(sendPacket), 0,
+            (struct sockaddr*)&clientToSv, adrlen);
+            
+printf("Send file... \n");
 
-  while(fgets(buffer, BUFFSIZE, f))
-  {
+if(rc < 0)
+{
+   printf("Filename");
+   exit(1);
+}
+
+while(fgets(buffer, BUFFSIZE, f))
+{
     SEND_AGAIN:
 
-    sendPacket.packetNr = lastPacketNr;
     strcpy(sendPacket.msg, buffer);
 
     rc = sendto(socketFd, &sendPacket, sizeof(sendPacket), 0,
             (struct sockaddr*)&clientToSv, adrlen);
 
-            if(rc < 0)
-            {
-              printf("Send probl");
-              exit(1);
-            }
+    if(rc < 0)
+    {
+        printf("Sendto %d\n", __LINE__);
+        goto SEND_AGAIN;
+    }
 
-    usleep(10000);
-
+    usleep(1000);
+s
     rc = recvfrom(socketFd, &recvPacket, sizeof(recvPacket), MSG_DONTWAIT,
         (struct sockaddr*)&clientToSv, &adrlen);
-        if(rc < 0)
-        {
-          printf("Rcv probl");
-          goto SEND_AGAIN;
-        }
-    if(recvPacket.packetNr != lastPacketNr || recvPacket.flag != 1)
+        
+    if(rc < 0 || recvPacket.flag != 1)
     {
-      goto SEND_AGAIN;
+        printf("Recvfrom %d\n", __LINE__);
+        goto SEND_AGAIN;
     }
-    lastPacketNr++;
-  }
 
-  sendPacket.packetNr = lastPacketNr;
-  sendPacket.flag = 2;
+}
 
-  rc = sendto(socketFd, &sendPacket, sizeof(sendPacket), 0,
+
+sendPacket.flag = 2;
+
+rc = sendto(socketFd, &sendPacket, sizeof(sendPacket), 0,
           (struct sockaddr*)&clientToSv, adrlen);
+          
 if(rc < 0)
 {
-    printf("Send probl final packet");
+    printf("Sendto %d\n", __LINE__);
     exit(1);
 }
 
-printf("File sent!");
+printf("\n File sent!");
+
 fclose(f);
 close(socket);
 
